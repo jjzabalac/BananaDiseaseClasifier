@@ -276,23 +276,32 @@ fun ClassifierApp(
                         .fillMaxWidth()
                         .background(backgroundColor)
                 ) {
-                    Row(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 8.dp, top = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(top = 8.dp)
                     ) {
                         IconButton(
                             onClick = { coroutineScope.launch { drawerState.open() } },
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .size(40.dp)
                         ) {
                             Icon(
-                                painter = painterResource(id = R.drawable.display_menu2),
+                                painter = painterResource(id = R.drawable.display_menu3),
                                 contentDescription = "Menu",
                                 tint = Color(0xFF4CAF50),
                                 modifier = Modifier.size(32.dp)
                             )
                         }
+                        Image(
+                            painter = painterResource(id = R.drawable.app_logo5),
+                            contentDescription = "App Logo",
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .size(50.dp)
+                                .background(backgroundColor)
+                        )
                     }
                     Text(
                         text = "Banana Scan",
@@ -302,7 +311,7 @@ fun ClassifierApp(
                         color = Color(0xFF4CAF50),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top  = 16.dp, bottom = 0.dp),
+                            .padding(top = 8.dp, bottom = 0.dp),
                         textAlign = TextAlign.Center
                     )
                 }
@@ -430,7 +439,7 @@ fun ClassifierApp(
                         Text("Classify", fontSize = 18.sp)
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
                 if (isClassifying) {
                     LinearProgressIndicator(
@@ -441,23 +450,29 @@ fun ClassifierApp(
                 }
 
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .height(90.dp)
+                        .fillMaxWidth(),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F0F0)) // Usa CardDefaults.cardColors para establecer el color
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(4.dp),
+                            .padding(horizontal = 16.dp),//, vertical = 3.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = resultState.value,
-                            fontSize = 18.sp,
+                            fontSize = 16.sp,
                             color = Color.Black,
                             textAlign = TextAlign.Center,
-                            maxLines = Int.MAX_VALUE,
-                            overflow = TextOverflow.Visible
+                            lineHeight = 22.sp,
+                            modifier = Modifier.fillMaxWidth()
+                            //maxLines = 2,
+                            //maxLines = Int.MAX_VALUE,
+                            //overflow = TextOverflow.Ellipsis
+                            //overflow = TextOverflow.Visible
                         )
                     }
                 }
