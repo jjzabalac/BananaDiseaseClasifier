@@ -31,6 +31,8 @@ import com.example.bananadiseaseclassifier.ui.theme.BananaDiseaseClassifierTheme
 import androidx.compose.ui.layout.ContentScale
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.background
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import java.io.File
@@ -45,11 +47,28 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import java.util.UUID
 import kotlin.math.exp
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextOverflow
+import kotlinx.coroutines.delay
+
+val robotoCondensedItalic = FontFamily(
+    Font(
+        resId = R.font.robotocondensed_italic,
+        style = FontStyle.Italic
+    )
+)
+val robotoCondensedSemibold = FontFamily(
+    Font(
+        resId = R.font.roboto_condensed_semibold,
+        style = FontStyle.Normal
+    )
+)
 
 class MainActivity : ComponentActivity() {
     private lateinit var imageUri: MutableState<Uri?>
     private var tflite: Interpreter? = null
     private lateinit var result: MutableState<String>
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,6 +105,7 @@ class MainActivity : ComponentActivity() {
     private suspend fun classifyImage(bitmap: Bitmap) {
         withContext(Dispatchers.Default) {
             try {
+                delay(500)
                 val startTime = System.currentTimeMillis()
                 val resizedBitmap = Bitmap.createScaledBitmap(bitmap, 96, 96, true)
                 val byteBuffer = convertBitmapToByteBuffer(resizedBitmap)
@@ -199,6 +219,7 @@ fun ClassifierApp(
     val coroutineScope = rememberCoroutineScope()
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
 
+    var isClassifying by remember { mutableStateOf(false) }
     val backgroundColor = Color(0xFFFFFCE0)
 
     val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -266,7 +287,7 @@ fun ClassifierApp(
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                painter = painterResource(id = R.drawable.display_menu),
+                                painter = painterResource(id = R.drawable.display_menu2),
                                 contentDescription = "Menu",
                                 tint = Color(0xFF4CAF50),
                                 modifier = Modifier.size(32.dp)
@@ -275,7 +296,8 @@ fun ClassifierApp(
                     }
                     Text(
                         text = "Banana Scan",
-                        fontSize = 40.sp,
+                        fontSize = 45.sp,
+                        fontFamily = robotoCondensedSemibold,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF4CAF50),
                         modifier = Modifier
@@ -323,7 +345,9 @@ fun ClassifierApp(
                 Text(
                     text = "Banana Disease Classifier",
                     fontSize = 18.sp,
+                    fontFamily = robotoCondensedItalic,
                     fontWeight = FontWeight.Medium,
+                    fontStyle = FontStyle.Italic,
                     color = Color(0xFF4CAF50).copy(alpha = 0.7F),
                     modifier = Modifier.padding(top = 0.dp, bottom = 16.dp)
                 )
@@ -384,16 +408,19 @@ fun ClassifierApp(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Button(
-                        onClick = {
-                            bitmap?.let {
-                                coroutineScope.launch {
-                                    classifyImage(it)
-                                }
-                            } ?: run {
-                                resultState.value = "Please select or capture an image first"
+                Button(
+                    onClick = {
+                        bitmap?.let {
+                            isClassifying = true
+                            coroutineScope.launch {
+                                classifyImage(it)
+                                delay(500) // Retraso de medio segundo
+                                isClassifying = false
                             }
-                        },
+                        } ?: run {
+                            resultState.value = "Please select or capture an image first"
+                        }
+                    },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp),
@@ -403,24 +430,41 @@ fun ClassifierApp(
                         Text("Classify", fontSize = 18.sp)
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                if (isClassifying) {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 10.dp)
+                    )
+                }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F0F0)) // Usa CardDefaults.cardColors para establecer el color
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = resultState.value,
                             fontSize = 18.sp,
                             color = Color.Black,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(16.dp)
+                            maxLines = Int.MAX_VALUE,
+                            overflow = TextOverflow.Visible
                         )
                     }
                 }
             }
         }
     }
+}
 
 
 @Preview(showBackground = true)
