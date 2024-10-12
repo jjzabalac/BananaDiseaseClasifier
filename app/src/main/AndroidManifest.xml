@@ -4,9 +4,13 @@
 
     <!-- Permisos para la cámara y el almacenamiento -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
     <!-- En Android 11 y versiones superiores, WRITE_EXTERNAL_STORAGE no es necesario si ya tienes READ_EXTERNAL_STORAGE -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- Compatibilidad con hardware de cámara -->
     <uses-feature android:name="android.hardware.camera" android:required="true" />
@@ -21,6 +25,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.BananaDiseaseClassifier"
+        android:name=".BananaDiseaseClassifierApp"
         tools:targetApi="31">
 
         <!-- Definición de FileProvider -->

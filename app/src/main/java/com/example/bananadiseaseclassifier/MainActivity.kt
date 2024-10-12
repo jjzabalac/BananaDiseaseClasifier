@@ -10,32 +10,14 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import com.example.bananadiseaseclassifier.ui.theme.BananaDiseaseClassifierTheme
-import androidx.compose.ui.layout.ContentScale
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.compose.foundation.background
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import java.io.File
 import org.tensorflow.lite.Interpreter
 import java.io.FileInputStream
 import java.nio.ByteBuffer
@@ -44,12 +26,17 @@ import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.launch
-import java.util.UUID
-import kotlin.math.exp
 import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.style.TextOverflow
-import kotlinx.coroutines.delay
+import com.example.bananadiseaseclassifier.data.AuthRepository
+import com.example.bananadiseaseclassifier.screens.LoginScreen
+import com.example.bananadiseaseclassifier.screens.MainScreen
+import com.example.bananadiseaseclassifier.screens.RegisterScreen
+import com.example.bananadiseaseclassifier.screens.HistoryScreen
+import com.google.firebase.FirebaseApp
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.tasks.await
 
 val robotoCondensedItalic = FontFamily(
     Font(
@@ -65,15 +52,49 @@ val robotoCondensedSemibold = FontFamily(
 )
 
 class MainActivity : ComponentActivity() {
+    private lateinit var authRepository: AuthRepository
     private lateinit var imageUri: MutableState<Uri?>
     private var tflite: Interpreter? = null
     private lateinit var result: MutableState<String>
-
+    private val firestore = Firebase.firestore
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        FirebaseApp.initializeApp(this)
+        authRepository = AuthRepository()
         imageUri = mutableStateOf(null)
         result = mutableStateOf("Result: Not Classified Yet")
+
+        setContent {
+            BananaDiseaseClassifierTheme {
+                var currentScreen by remember { mutableStateOf("login") }
+
+                when (currentScreen) {
+                    "login" -> LoginScreen(
+                        authRepository = authRepository,
+                        onLoginSuccess = { currentScreen = "main" },
+                        onRegisterClick = { currentScreen = "register" }
+                    )
+                    "register" -> RegisterScreen(
+                        authRepository = authRepository,
+                        onRegisterSuccess = { currentScreen = "main" },
+                        onLoginClick = { currentScreen = "login" }
+                    )
+                    "main" -> MainScreen(
+                        imageUriState = imageUri,
+                        resultState = result,
+                        classifyImage = ::classifyImage,
+                        authRepository = authRepository,
+                        onLogout = { currentScreen = "login" },
+                        onHistoryClick = { currentScreen = "history" }
+                    )
+                    "history" -> HistoryScreen(
+                        authRepository = authRepository,
+                        onBack = { currentScreen = "main" }
+                    )
+                }
+            }
+        }
 
         try {
             tflite = Interpreter(loadModelFile())
@@ -85,11 +106,6 @@ class MainActivity : ComponentActivity() {
             result.value = "Error: Could not load model"
         }
 
-        setContent {
-            BananaDiseaseClassifierTheme {
-                ClassifierApp(imageUri, result, ::classifyImage)
-            }
-        }
         checkPermissions()
     }
 
@@ -105,7 +121,6 @@ class MainActivity : ComponentActivity() {
     private suspend fun classifyImage(bitmap: Bitmap) {
         withContext(Dispatchers.Default) {
             try {
-                delay(500)
                 val startTime = System.currentTimeMillis()
                 val resizedBitmap = Bitmap.createScaledBitmap(bitmap, 96, 96, true)
                 val byteBuffer = convertBitmapToByteBuffer(resizedBitmap)
@@ -118,21 +133,43 @@ class MainActivity : ComponentActivity() {
                 Log.d("Classification", "Raw results: ${outputArray[0].contentToString()}")
 
                 val classes = arrayOf("BLACK_SIKATOGA", "HEALTHY", "MOKO")
-                val maxIndex = outputArray[0].indices.maxByOrNull { outputArray[0][it] } ?: -1
-                val maxConfidence = outputArray[0][maxIndex]
+                val probabilities = outputArray[0]
 
-                val softmaxOutputs = softmax(outputArray[0])
-                Log.d("Classification", "Softmax outputs: ${softmaxOutputs.contentToString()}")
+                val maxProb = probabilities.maxOrNull() ?: 0f
+                val maxIndex = probabilities.indexOfFirst { it == maxProb }
 
-                val softmaxMaxIndex = softmaxOutputs.indices.maxByOrNull { softmaxOutputs[it] } ?: -1
-                val softmaxMaxConfidence = softmaxOutputs[softmaxMaxIndex]
-
-                result.value = if (softmaxMaxConfidence > 0.5) {
-                    "Result: ${classes[softmaxMaxIndex]} (Confidence: ${String.format("%.2f", softmaxMaxConfidence)})"
+                val resultString = if (maxProb < 0.6f) {
+                    "DESCONOCIDO"
                 } else {
-                    "Result: DESCONOCIDO (Max Confidence: ${String.format("%.2f", softmaxMaxConfidence)})"
+                    classes[maxIndex]
                 }
 
+                val userId = authRepository.getCurrentUserId()
+                Log.d("Auth", "Current user ID: $userId")
+
+                if (userId != null) {
+                    val classification = Classification(
+                        userId = userId,
+                        result = resultString,
+                        confidence = maxProb.toDouble(),
+                        timestamp = Timestamp.now()
+                    )
+
+                    try {
+                        val saveResult = authRepository.saveClassification(classification)
+                        saveResult.onSuccess { documentId ->
+                            Log.d("Firestore", "Classification saved with ID: $documentId")
+                        }.onFailure { error ->
+                            Log.e("Firestore", "Error saving classification", error)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("Firestore", "Exception while saving classification", e)
+                    }
+                } else {
+                    Log.e("Firestore", "User not authenticated, classification not saved")
+                }
+
+                result.value = "Result:\n$resultString\n${String.format("%.2f", maxProb * 100)}%"
                 Log.d("Classification", "Final result: ${result.value}")
             } catch (e: Exception) {
                 Log.e("Classification", "Error during classification", e)
@@ -158,20 +195,6 @@ class MainActivity : ComponentActivity() {
         }
         byteBuffer.rewind()
         return byteBuffer
-    }
-
-    private fun softmax(input: FloatArray): FloatArray {
-        val output = FloatArray(input.size)
-        val max = input.maxOrNull() ?: 0f
-        var sum = 0f
-        for (i in input.indices) {
-            output[i] = exp((input[i] - max).toDouble()).toFloat()
-            sum += output[i]
-        }
-        for (i in output.indices) {
-            output[i] /= sum
-        }
-        return output
     }
 
     private fun checkPermissions() {
@@ -207,20 +230,19 @@ class MainActivity : ComponentActivity() {
         private const val PERMISSIONS_REQUEST_CODE = 100
     }
 }
-
-@OptIn(ExperimentalMaterial3Api::class)
+/*/@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClassifierApp(
     imageUriState: MutableState<Uri?>,
     resultState: MutableState<String>,
     classifyImage: suspend (Bitmap) -> Unit
 ) {
+    val backgroundColor = Color(0xFFF8F5D0)
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
-
     var isClassifying by remember { mutableStateOf(false) }
-    val backgroundColor = Color(0xFFFFFCE0)
+
 
     val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         imageUriState.value = uri
@@ -251,21 +273,25 @@ fun ClassifierApp(
         }
     }
 
+
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(
-                drawerContainerColor = backgroundColor
-            ) {
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    "Historial",
-                    modifier = Modifier.padding(16.dp),
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Divider()
+            ModalDrawerSheet {
+                Surface(modifier = Modifier.fillMaxSize(),
+                        color = backgroundColor) {
+                    Column {
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "Historial",
+                            modifier = Modifier.padding(16.dp),
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Divider()
+                    }
+                }
             }
         }
     ) {
@@ -290,7 +316,7 @@ fun ClassifierApp(
                             Icon(
                                 painter = painterResource(id = R.drawable.display_menu3),
                                 contentDescription = "Menu",
-                                tint = Color(0xFF4CAF50),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(32.dp)
                             )
                         }
@@ -299,16 +325,30 @@ fun ClassifierApp(
                             contentDescription = "App Logo",
                             modifier = Modifier
                                 .align(Alignment.Center)
-                                .size(50.dp)
+                                .size(40.dp)
                                 .background(backgroundColor)
                         )
+                        IconButton(
+                            onClick = { },
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .size(40.dp)
+                                .padding(end = 10.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.user_logo),
+                                contentDescription = "User",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
                     }
                     Text(
                         text = "Banana Scan",
                         fontSize = 45.sp,
                         fontFamily = robotoCondensedSemibold,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF4CAF50),
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 8.dp, bottom = 0.dp),
@@ -317,9 +357,7 @@ fun ClassifierApp(
                 }
             },
             bottomBar = {
-                BottomAppBar(
-                    containerColor = backgroundColor
-                ) {
+                BottomAppBar(containerColor = backgroundColor) {
                     Box(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.Center
@@ -335,7 +373,7 @@ fun ClassifierApp(
                                 painter = painterResource(id = R.drawable.try_again),
                                 contentDescription = "Home",
                                 modifier = Modifier.size(48.dp),
-                                tint = Color(0xFF4CAF50)
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -347,7 +385,7 @@ fun ClassifierApp(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(16.dp),
+                    .padding(2.dp),
                 verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -357,90 +395,91 @@ fun ClassifierApp(
                     fontFamily = robotoCondensedItalic,
                     fontWeight = FontWeight.Medium,
                     fontStyle = FontStyle.Italic,
-                    color = Color(0xFF4CAF50).copy(alpha = 0.7F),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7F),
                     modifier = Modifier.padding(top = 0.dp, bottom = 16.dp)
                 )
+                                Card(
+                    modifier = Modifier
+                        .size(250.dp)
+                        .padding(vertical = 16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
 
-                    Card(
-                        modifier = Modifier.size(250.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                    ) {
-                        bitmap?.let { btm ->
-                            Image(
-                                bitmap = btm.asImageBitmap(),
-                                contentDescription = "Selected Image",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } ?: Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.LightGray),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No image selected",
-                                color = Color.White,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Button(
-                        onClick = { imagePickerLauncher.launch("image/*") },
+                ) {
+                    bitmap?.let { btm ->
+                        Image(
+                            bitmap = btm.asImageBitmap(),
+                            contentDescription = "Selected Image",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } ?: Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                            .fillMaxSize()
+                            .background(Color.LightGray),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text("Upload Image", fontSize = 18.sp)
+                        Text(
+                            text = "No image selected",
+                            color = Color.White,
+                            textAlign = TextAlign.Center
+                        )
                     }
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+                val primaryColor = Color(0xFF4CAF50)  // Verde
+                val secondaryColor = Color(0xFF2196F3)  // Azul
+                val tertiaryColor = Color(0xFFFFA000)  // Amarillo
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Button(
-                        onClick = {
-                            val photoFile = File(context.cacheDir, "photo_${UUID.randomUUID()}.jpg")
-                            val photoUri = FileProvider.getUriForFile(context, "${context.packageName}.provider", photoFile)
-                            imageUriState.value = photoUri
-                            takePictureLauncher.launch(photoUri)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
-                    ) {
-                        Text("Take Photo", fontSize = 18.sp)
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
+                Button(
+                    onClick = { imagePickerLauncher.launch("image/*") },
+                    modifier = Modifier
+                        //.fillMaxWidth()
+                        .width(300.dp)
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+                ) {
+                    Text("Upload Image", fontSize = 18.sp, color = Color.White)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        val photoFile = File(context.cacheDir, "photo_${UUID.randomUUID()}.jpg")
+                        val photoUri = FileProvider.getUriForFile(context, "${context.packageName}.provider", photoFile)
+                        imageUriState.value = photoUri
+                        takePictureLauncher.launch(photoUri)
+                    },
+                    modifier = Modifier
+                        //.fillMaxWidth()
+                        .width(300.dp)
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = secondaryColor)
+                ) {
+                    Text("Take Photo", fontSize = 18.sp, color = Color.White)
+                }
+                Spacer(modifier = Modifier.height(16.dp))
                 Button(
                     onClick = {
                         bitmap?.let {
                             isClassifying = true
                             coroutineScope.launch {
                                 classifyImage(it)
-                                delay(500) // Retraso de medio segundo
+                                delay(500)
                                 isClassifying = false
                             }
                         } ?: run {
                             resultState.value = "Please select or capture an image first"
                         }
                     },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFA000)),
-                        enabled = bitmap != null
-                    ) {
-                        Text("Classify", fontSize = 18.sp)
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
+                    modifier = Modifier
+                        //.fillMaxWidth()
+                        .width(300.dp)
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = tertiaryColor),
+                    enabled = bitmap != null
+                ) {
+                    Text("Classify", fontSize = 18.sp, color = Color.White)
+                }
+                Spacer(modifier = Modifier.height(18.dp))
                 if (isClassifying) {
                     LinearProgressIndicator(
                         modifier = Modifier
@@ -448,31 +487,30 @@ fun ClassifierApp(
                             .padding(vertical = 10.dp)
                     )
                 }
-
+                val cardBackgroundColor = Color(0xFFFFFFF0)
                 Card(
                     modifier = Modifier
                         .height(90.dp)
-                        .fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F0F0)) // Usa CardDefaults.cardColors para establecer el color
+                        .width(350.dp),
+                        //.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    colors = CardDefaults.cardColors(containerColor = cardBackgroundColor)
+                    //colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp),//, vertical = 3.dp),
+                            .padding(horizontal = 16.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = resultState.value,
-                            fontSize = 16.sp,
-                            color = Color.Black,
+                            fontSize = 18.sp,
+                            color = MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center,
                             lineHeight = 22.sp,
                             modifier = Modifier.fillMaxWidth()
-                            //maxLines = 2,
-                            //maxLines = Int.MAX_VALUE,
-                            //overflow = TextOverflow.Ellipsis
-                            //overflow = TextOverflow.Visible
+                                .padding(top=12.dp)
                         )
                     }
                 }
@@ -492,4 +530,4 @@ fun DefaultPreview() {
             {}
         )
     }
-}
+}*/

@@ -1,9 +1,19 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    id ("com.google.gms.google-services")
 }
 
 android {
+    signingConfigs {
+        create("release") {
+            storeFile =
+                file("C:\\Users\\ZABROSS\\Documents\\Academia\\Master\'s degree Applied Statistics and Data Science\\Proyecto de Grado\\BCD_App_key")
+            storePassword = "f04u43c26K."
+            keyAlias = "BDC_App_key"
+            keyPassword = "f04u43c26K."
+        }
+    }
     namespace = "com.example.bananadiseaseclassifier"
     compileSdk = 34
 
@@ -11,8 +21,8 @@ android {
         applicationId = "com.example.bananadiseaseclassifier"
         minSdk = 24
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.1.2" //
+        versionCode = 6
+        versionName = "1.1.4" //
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -70,6 +80,18 @@ dependencies {
     implementation (libs.androidx.ui.tooling.preview.v105)
     implementation (libs.androidx.activity.compose.v131)
     implementation (libs.kotlinx.coroutines.android)
+    implementation (libs.androidx.material3.v112)
+    // Import the Firebase BoM
+    implementation(platform(libs.firebase.bom))
+    // TODO: Add the dependencies for Firebase products you want to use
+    // When using the BoM, don't specify versions in Firebase dependencies
+    implementation(libs.firebase.analytics)
+    // Add the dependencies for any other desired Firebase products
+    // https://firebase.google.com/docs/android/setup#available-libraries
+    implementation (libs.firebase.auth.ktx)
+    implementation (libs.kotlinx.coroutines.play.services)
+    implementation (libs.firebase.firestore.ktx)
+
 
 
     // Dependencias para Debugging y Testing
