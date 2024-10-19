@@ -9,9 +9,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.bananadiseaseclassifier.R
 import com.example.bananadiseaseclassifier.data.AuthRepository
 import com.example.bananadiseaseclassifier.Classification
 import kotlinx.coroutines.launch
@@ -26,6 +28,9 @@ fun HistoryScreen(authRepository: AuthRepository, onBack: () -> Unit) {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    val failedToLoadHistory = stringResource(R.string.failed_to_load_history)
+    val userNotAuthenticated = stringResource(R.string.user_not_authenticated)
+
     LaunchedEffect(Unit) {
         coroutineScope.launch {
             val userId = authRepository.getCurrentUserId()
@@ -35,11 +40,11 @@ fun HistoryScreen(authRepository: AuthRepository, onBack: () -> Unit) {
                     classifications = it
                     isLoading = false
                 }.onFailure { error ->
-                    errorMessage = "Failed to load history: ${error.message}"
+                    errorMessage = failedToLoadHistory.format(error.message ?: "")
                     isLoading = false
                 }
             } else {
-                errorMessage = "User not authenticated"
+                errorMessage = userNotAuthenticated
                 isLoading = false
             }
         }
@@ -48,10 +53,10 @@ fun HistoryScreen(authRepository: AuthRepository, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Classification History") },
+                title = { Text(stringResource(R.string.classification_history)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 }
             )
@@ -71,7 +76,7 @@ fun HistoryScreen(authRepository: AuthRepository, onBack: () -> Unit) {
                 }
                 classifications.isEmpty() -> {
                     Text(
-                        text = "No classifications found",
+                        text = stringResource(R.string.no_classifications_found),
                         modifier = Modifier.align(Alignment.Center)
                     )
                 }
@@ -97,14 +102,14 @@ fun ClassificationItem(classification: Classification) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Result: ${classification.result}",
+                text = stringResource(R.string.result_colon, classification.result),
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Text("Confidence: ${String.format("%.2f", classification.confidence * 100)}%")
+            Text(stringResource(R.string.confidence_percent, classification.confidence * 100))
             Spacer(modifier = Modifier.height(4.dp))
-            Text("Date: ${formatDate(classification.timestamp.toDate())}")
+            Text(stringResource(R.string.date_colon, formatDate(classification.timestamp.toDate())))
         }
     }
 }

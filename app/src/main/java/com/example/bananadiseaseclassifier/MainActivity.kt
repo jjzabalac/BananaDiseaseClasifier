@@ -1,7 +1,11 @@
 package com.example.bananadiseaseclassifier
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
@@ -37,6 +41,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.tasks.await
+import java.util.*
 
 val robotoCondensedItalic = FontFamily(
     Font(
@@ -63,11 +68,16 @@ class MainActivity : ComponentActivity() {
         FirebaseApp.initializeApp(this)
         authRepository = AuthRepository()
         imageUri = mutableStateOf(null)
-        result = mutableStateOf("Result: Not Classified Yet")
+        result = mutableStateOf(getString(R.string.select_image_first))
+
+        val savedLanguage = getSharedPreferences("Settings", Context.MODE_PRIVATE)
+            .getString("Language", "en") ?: "en"
+        setLocale(savedLanguage)
 
         setContent {
             BananaDiseaseClassifierTheme {
                 var currentScreen by remember { mutableStateOf("login") }
+                var currentLanguage by remember { mutableStateOf(savedLanguage) }
 
                 when (currentScreen) {
                     "login" -> LoginScreen(
@@ -86,7 +96,13 @@ class MainActivity : ComponentActivity() {
                         classifyImage = ::classifyImage,
                         authRepository = authRepository,
                         onLogout = { currentScreen = "login" },
-                        onHistoryClick = { currentScreen = "history" }
+                        onHistoryClick = { currentScreen = "history" },
+                        currentLanguage = currentLanguage,
+                        onLanguageChange = { newLanguage ->
+                            setLocale(newLanguage)
+                            currentLanguage = newLanguage
+                            recreate()
+                        }
                     )
                     "history" -> HistoryScreen(
                         authRepository = authRepository,
@@ -103,7 +119,7 @@ class MainActivity : ComponentActivity() {
             Log.d("ModelLoading", "Output shape: ${tflite?.getOutputTensor(0)?.shape()?.contentToString()}")
         } catch (e: Exception) {
             Log.e("ModelLoading", "Error loading TFLite model", e)
-            result.value = "Error: Could not load model"
+            result.value = getString(R.string.error_loading_image)
         }
 
         checkPermissions()
@@ -169,11 +185,12 @@ class MainActivity : ComponentActivity() {
                     Log.e("Firestore", "User not authenticated, classification not saved")
                 }
 
-                result.value = "Result:\n$resultString\n${String.format("%.2f", maxProb * 100)}%"
+                result.value = getString(R.string.result, resultString) + "\n" +
+                        getString(R.string.confidence, maxProb * 100)
                 Log.d("Classification", "Final result: ${result.value}")
             } catch (e: Exception) {
                 Log.e("Classification", "Error during classification", e)
-                result.value = "Error: Classification failed"
+                result.value = getString(R.string.error_loading_image)
             }
         }
     }
@@ -218,17 +235,44 @@ class MainActivity : ComponentActivity() {
         if (requestCode == PERMISSIONS_REQUEST_CODE && grantResults.isNotEmpty()) {
             if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                 Log.d("Permissions", "All permissions granted")
-                Toast.makeText(this, "All permissions granted", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.all_permissions_granted), Toast.LENGTH_SHORT).show()
             } else {
                 Log.w("Permissions", "Some permissions were denied")
-                Toast.makeText(this, "Some features may be limited", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.some_features_limited), Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun setLocale(languageCode: String) {
+        val locale = Locale(languageCode)
+        Locale.setDefault(locale)
+        val config = Configuration()
+        config.setLocale(locale)
+        baseContext.resources.updateConfiguration(config, baseContext.resources.displayMetrics)
+
+        getSharedPreferences("Settings", Context.MODE_PRIVATE).edit()
+            .putString("Language", languageCode)
+            .apply()
     }
 
     companion object {
         private const val PERMISSIONS_REQUEST_CODE = 100
     }
+}
+
+fun Context.setLocale(languageCode: String): Context {
+    val locale = Locale(languageCode)
+    Locale.setDefault(locale)
+    val config = resources.configuration
+    config.setLocale(locale)
+    return createConfigurationContext(config)
+}
+
+fun Activity.restartApp() {
+    val intent = Intent(this, MainActivity::class.java)
+    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+    startActivity(intent)
+    finish()
 }
 /*/@OptIn(ExperimentalMaterial3Api::class)
 @Composable

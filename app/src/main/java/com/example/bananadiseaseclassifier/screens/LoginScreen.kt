@@ -1,4 +1,5 @@
 package com.example.bananadiseaseclassifier.screens
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -8,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -40,14 +42,14 @@ fun LoginScreen(
     ) {
         Image(
             painter = painterResource(id = R.drawable.app_logo5),
-            contentDescription = "App Logo",
+            contentDescription = stringResource(R.string.app_logo_description),
             modifier = Modifier
                 .size(100.dp)
                 .padding(bottom = 16.dp)
         )
 
         Text(
-            text = "Banana Scan",
+            text = stringResource(R.string.app_name),
             fontSize = 40.sp,
             fontFamily = robotoCondensedSemibold,
             fontWeight = FontWeight.Bold,
@@ -58,7 +60,7 @@ fun LoginScreen(
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("Email") },
+            label = { Text(stringResource(R.string.email)) },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 8.dp)
@@ -67,7 +69,7 @@ fun LoginScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password") },
+            label = { Text(stringResource(R.string.password)) },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier
                 .fillMaxWidth()
@@ -93,7 +95,7 @@ fun LoginScreen(
                 .height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
         ) {
-            Text("Login", fontSize = 18.sp)
+            Text(stringResource(R.string.login_button), fontSize = 18.sp)
         }
 
         errorMessage?.let {
@@ -107,7 +109,7 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         TextButton(onClick = onRegisterClick) {
-            Text("Don't have an account? Register")
+            Text(stringResource(R.string.dont_have_account))
         }
     }
 }

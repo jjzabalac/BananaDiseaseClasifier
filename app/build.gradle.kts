@@ -21,8 +21,8 @@ android {
         applicationId = "com.example.bananadiseaseclassifier"
         minSdk = 24
         targetSdk = 34
-        versionCode = 6
-        versionName = "1.1.4" //
+        versionCode = 8
+        versionName = "1.3" //
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -106,4 +106,3 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
 
 }
-

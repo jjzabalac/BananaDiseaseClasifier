@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -28,8 +29,9 @@ import com.example.bananadiseaseclassifier.R
 import com.example.bananadiseaseclassifier.data.AuthRepository
 import com.example.bananadiseaseclassifier.robotoCondensedItalic
 import com.example.bananadiseaseclassifier.robotoCondensedSemibold
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.*
 
@@ -41,7 +43,9 @@ fun MainScreen(
     classifyImage: suspend (Bitmap) -> Unit,
     authRepository: AuthRepository,
     onLogout: () -> Unit,
-    onHistoryClick: () -> Unit
+    onHistoryClick: () -> Unit,
+    currentLanguage: String,
+    onLanguageChange: (String) -> Unit
 ) {
     val backgroundColor = Color(0xFFF8F5D0)
     val context = LocalContext.current
@@ -52,29 +56,41 @@ fun MainScreen(
     val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         imageUriState.value = uri
         uri?.let {
-            try {
-                bitmap = BitmapFactory.decodeStream(context.contentResolver.openInputStream(it))
-                resultState.value = "Image loaded. Press 'Classify' to analyze."
-            } catch (e: Exception) {
-                Log.e("ImagePicker", "Error loading image", e)
-                resultState.value = "Error: Failed to load image"
+            coroutineScope.launch {
+                try {
+                    bitmap = withContext(Dispatchers.IO) {
+                        context.contentResolver.openInputStream(it)?.use { stream ->
+                            BitmapFactory.decodeStream(stream)
+                        }
+                    }
+                    resultState.value = context.getString(R.string.image_loaded)
+                } catch (e: Exception) {
+                    Log.e("ImagePicker", "Error loading image", e)
+                    resultState.value = context.getString(R.string.error_loading_image)
+                }
             }
         }
     }
 
     val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean ->
         if (success) {
-            try {
-                imageUriState.value?.let { uri ->
-                    bitmap = BitmapFactory.decodeStream(context.contentResolver.openInputStream(uri))
-                    resultState.value = "Photo captured. Press 'Classify' to analyze."
+            coroutineScope.launch {
+                try {
+                    imageUriState.value?.let { uri ->
+                        bitmap = withContext(Dispatchers.IO) {
+                            context.contentResolver.openInputStream(uri)?.use { stream ->
+                                BitmapFactory.decodeStream(stream)
+                            }
+                        }
+                        resultState.value = context.getString(R.string.photo_captured)
+                    }
+                } catch (e: Exception) {
+                    Log.e("CameraCapture", "Error processing captured photo", e)
+                    resultState.value = context.getString(R.string.error_processing_photo)
                 }
-            } catch (e: Exception) {
-                Log.e("CameraCapture", "Error processing captured photo", e)
-                resultState.value = "Error: Failed to process photo"
             }
         } else {
-            resultState.value = "Failed to take photo"
+            resultState.value = context.getString(R.string.failed_to_take_photo)
         }
     }
 
@@ -94,32 +110,35 @@ fun MainScreen(
                     IconButton(onClick = onHistoryClick) {
                         Icon(
                             painter = painterResource(id = R.drawable.display_menu3),
-                            contentDescription = "History",
+                            contentDescription = stringResource(R.string.classification_history),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(32.dp)
                         )
                     }
                     Image(
                         painter = painterResource(id = R.drawable.app_logo5),
-                        contentDescription = "App Logo",
+                        contentDescription = stringResource(R.string.app_name),
                         modifier = Modifier.size(48.dp)
                     )
-                    IconButton(onClick = {
-                        coroutineScope.launch {
-                            authRepository.signOut()
-                            onLogout()
+                    Row {
+                        LanguageSelector(currentLanguage, onLanguageChange)
+                        IconButton(onClick = {
+                            coroutineScope.launch {
+                                authRepository.signOut()
+                                onLogout()
+                            }
+                        }) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.logout_logo2),
+                                contentDescription = "Logout",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(32.dp)
+                            )
                         }
-                    }) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.logout_logo2),
-                            contentDescription = "Logout",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(32.dp)
-                        )
                     }
                 }
                 Text(
-                    text = "Banana Scan",
+                    text = stringResource(R.string.app_name),
                     fontSize = 40.sp,
                     fontFamily = robotoCondensedSemibold,
                     fontWeight = FontWeight.Bold,
@@ -140,7 +159,7 @@ fun MainScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Banana Disease Classifier",
+                text = stringResource(R.string.banana_disease_classifier),
                 fontSize = 18.sp,
                 fontFamily = robotoCondensedItalic,
                 fontWeight = FontWeight.Medium,
@@ -169,7 +188,7 @@ fun MainScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No image selected",
+                        text = stringResource(R.string.no_image_selected),
                         color = Color.White,
                         textAlign = TextAlign.Center
                     )
@@ -183,7 +202,7 @@ fun MainScreen(
                     .height(50.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
             ) {
-                Text("Upload Image", fontSize = 18.sp, color = Color.White)
+                Text(stringResource(R.string.upload_image), fontSize = 18.sp, color = Color.White)
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -200,7 +219,7 @@ fun MainScreen(
                     .height(50.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
             ) {
-                Text("Take Photo", fontSize = 18.sp, color = Color.White)
+                Text(stringResource(R.string.take_photo), fontSize = 18.sp, color = Color.White)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -211,11 +230,12 @@ fun MainScreen(
                         isClassifying = true
                         coroutineScope.launch {
                             classifyImage(it)
-                            delay(500)
                             isClassifying = false
                         }
                     } ?: run {
-                        resultState.value = "Please select or capture an image first"
+                        coroutineScope.launch {
+                            resultState.value = context.getString(R.string.select_image_first)
+                        }
                     }
                 },
                 modifier = Modifier
@@ -224,7 +244,7 @@ fun MainScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFA000)),
                 enabled = bitmap != null
             ) {
-                Text("Classify", fontSize = 18.sp, color = Color.White)
+                Text(stringResource(R.string.classify), fontSize = 18.sp, color = Color.White)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -256,6 +276,36 @@ fun MainScreen(
                         lineHeight = 22.sp
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun LanguageSelector(currentLanguage: String, onLanguageChange: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val languages = listOf("en" to "EN", "es" to "ES")
+
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Text(
+                text = languages.first { it.first == currentLanguage }.second,
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = 14.sp
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            languages.forEach { (code, name) ->
+                DropdownMenuItem(
+                    text = { Text(name) },
+                    onClick = {
+                        onLanguageChange(code)
+                        expanded = false
+                    }
+                )
             }
         }
     }

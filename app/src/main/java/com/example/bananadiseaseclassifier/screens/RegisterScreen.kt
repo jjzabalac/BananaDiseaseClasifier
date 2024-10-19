@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -32,6 +33,8 @@ fun RegisterScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
+    val passwordsDoNotMatch = stringResource(R.string.passwords_do_not_match)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -42,14 +45,14 @@ fun RegisterScreen(
     ) {
         Image(
             painter = painterResource(id = R.drawable.app_logo5),
-            contentDescription = "App Logo",
+            contentDescription = stringResource(R.string.app_logo_description),
             modifier = Modifier
                 .size(100.dp)
                 .padding(bottom = 16.dp)
         )
 
         Text(
-            text = "Banana Scan",
+            text = stringResource(R.string.app_name),
             fontSize = 40.sp,
             fontFamily = robotoCondensedSemibold,
             fontWeight = FontWeight.Bold,
@@ -60,7 +63,7 @@ fun RegisterScreen(
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("Email") },
+            label = { Text(stringResource(R.string.email)) },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 8.dp)
@@ -69,7 +72,7 @@ fun RegisterScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password") },
+            label = { Text(stringResource(R.string.password)) },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier
                 .fillMaxWidth()
@@ -79,7 +82,7 @@ fun RegisterScreen(
         OutlinedTextField(
             value = confirmPassword,
             onValueChange = { confirmPassword = it },
-            label = { Text("Confirm Password") },
+            label = { Text(stringResource(R.string.confirm_password)) },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier
                 .fillMaxWidth()
@@ -89,7 +92,7 @@ fun RegisterScreen(
         Button(
             onClick = {
                 if (password != confirmPassword) {
-                    errorMessage = "Passwords do not match"
+                    errorMessage = passwordsDoNotMatch
                 } else {
                     coroutineScope.launch {
                         val result = authRepository.signUp(email, password)
@@ -109,7 +112,7 @@ fun RegisterScreen(
                 .height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
         ) {
-            Text("Register", fontSize = 18.sp)
+            Text(stringResource(R.string.register_button), fontSize = 18.sp)
         }
 
         errorMessage?.let {
@@ -123,7 +126,7 @@ fun RegisterScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         TextButton(onClick = onLoginClick) {
-            Text("Already have an account? Login")
+            Text(stringResource(R.string.already_have_account))
         }
     }
 }
