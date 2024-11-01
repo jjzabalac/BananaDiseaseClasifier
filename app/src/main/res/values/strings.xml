@@ -17,6 +17,9 @@
     <string name="failed_to_take_photo">Failed to take photo</string>
     <string name="error_loading_image">Error: Failed to load image</string>
     <string name="error_processing_photo">Error: Failed to process photo</string>
+    <string name="error_model_not_initialized">Error: Model not initialized</string>
+    <string name="error_classification_failed">Error: Classification failed</string>
+    <string name="error_image_too_large">Error: Image is too large to process</string>
     <string name="all_permissions_granted">All permissions granted</string>
     <string name="some_features_limited">Some features may be limited</string>
     <string name="register_title">Register</string>

@@ -116,11 +116,19 @@ fun MainScreen(
                         )
                     }
                     Image(
-                        painter = painterResource(id = R.drawable.app_logo5),
+                        painter = painterResource(id = R.drawable.app_logo_001),
                         contentDescription = stringResource(R.string.app_name),
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier
+                            .size(48.dp)
+                            .weight(1f) // Añadir weight para centrar
+                            .offset(x = 25.dp),
+                        alignment = Alignment.Center // Centrar la imagen
                     )
-                    Row {
+                    // Contenedor para los botones de la derecha con el mismo tamaño que el menú
+                    Row(
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         LanguageSelector(currentLanguage, onLanguageChange)
                         IconButton(onClick = {
                             coroutineScope.launch {

@@ -44,7 +44,7 @@ fun RegisterScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Image(
-            painter = painterResource(id = R.drawable.app_logo5),
+            painter = painterResource(id = R.drawable.app_logo_001),
             contentDescription = stringResource(R.string.app_logo_description),
             modifier = Modifier
                 .size(100.dp)

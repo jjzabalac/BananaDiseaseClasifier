@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import android.os.Bundle
 import android.net.Uri
 import android.util.Log
@@ -43,20 +44,12 @@ import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.tasks.await
 import java.util.*
 
-val robotoCondensedItalic = FontFamily(
-    Font(
-        resId = R.font.robotocondensed_italic,
-        style = FontStyle.Italic
-    )
-)
-val robotoCondensedSemibold = FontFamily(
-    Font(
-        resId = R.font.roboto_condensed_semibold,
-        style = FontStyle.Normal
-    )
-)
+val robotoCondensedItalic = FontFamily(Font(resId = R.font.robotocondensed_italic, style = FontStyle.Italic))
+val robotoCondensedSemibold = FontFamily(Font(resId = R.font.roboto_condensed_semibold, style = FontStyle.Normal))
 
 class MainActivity : ComponentActivity() {
+    private var imageSizeX: Int = 96
+    private var imageSizeY: Int = 96
     private lateinit var authRepository: AuthRepository
     private lateinit var imageUri: MutableState<Uri?>
     private var tflite: Interpreter? = null
@@ -74,6 +67,7 @@ class MainActivity : ComponentActivity() {
             .getString("Language", "en") ?: "en"
         setLocale(savedLanguage)
 
+        loadModel()
         setContent {
             BananaDiseaseClassifierTheme {
                 var currentScreen by remember { mutableStateOf("login") }
@@ -111,22 +105,29 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-
-        try {
-            tflite = Interpreter(loadModelFile())
-            Log.d("ModelLoading", "TFLite model loaded successfully")
-            Log.d("ModelLoading", "Input shape: ${tflite?.getInputTensor(0)?.shape()?.contentToString()}")
-            Log.d("ModelLoading", "Output shape: ${tflite?.getOutputTensor(0)?.shape()?.contentToString()}")
-        } catch (e: Exception) {
-            Log.e("ModelLoading", "Error loading TFLite model", e)
-            result.value = getString(R.string.error_loading_image)
-        }
-
         checkPermissions()
     }
 
+    private fun loadModel() {
+        try {
+            val options = Interpreter.Options()
+            options.setNumThreads(4)
+            options.setUseNNAPI(true)
+            tflite = Interpreter(loadModelFile(), options)
+
+            val inputShape = tflite?.getInputTensor(0)?.shape()
+            val outputShape = tflite?.getOutputTensor(0)?.shape()
+            imageSizeX = inputShape?.get(1) ?: 96
+            imageSizeY = inputShape?.get(2) ?: 96
+
+            Log.d("ModelLoading", "Model loaded successfully. Input shape: ${inputShape?.contentToString()}, Output shape: ${outputShape?.contentToString()}")
+        } catch (e: Exception) {
+            Log.e("ModelLoading", "Error loading model", e)
+        }
+    }
+
     private fun loadModelFile(): MappedByteBuffer {
-        val fileDescriptor = assets.openFd("classification_banana_leafs-TRANSFER-LEARNING-tensorflow-lite-float32-model.tflite")
+        val fileDescriptor = assets.openFd("transfer-learning-tensorflow-lite-float32-model-4 (2).tflite")
         val inputStream = FileInputStream(fileDescriptor.fileDescriptor)
         val fileChannel = inputStream.channel
         val startOffset = fileDescriptor.startOffset
@@ -137,81 +138,111 @@ class MainActivity : ComponentActivity() {
     private suspend fun classifyImage(bitmap: Bitmap) {
         withContext(Dispatchers.Default) {
             try {
-                val startTime = System.currentTimeMillis()
-                val resizedBitmap = Bitmap.createScaledBitmap(bitmap, 96, 96, true)
-                val byteBuffer = convertBitmapToByteBuffer(resizedBitmap)
+                Log.d("Classification", "Starting classification for image: ${bitmap.width}x${bitmap.height}")
 
-                val outputArray = Array(1) { FloatArray(3) }
-                tflite?.run(byteBuffer, outputArray)
+                val scaledBitmap = scaleBitmapAndKeepRatio(bitmap)
+                val preprocessedBuffer = convertBitmapToByteBuffer(scaledBitmap)
 
-                val endTime = System.currentTimeMillis()
-                Log.d("Classification", "Time taken: ${endTime - startTime} ms")
-                Log.d("Classification", "Raw results: ${outputArray[0].contentToString()}")
+                val outputArray = Array(1) { FloatArray(4) }
 
-                val classes = arrayOf("BLACK_SIKATOGA", "HEALTHY", "MOKO")
-                val probabilities = outputArray[0]
+                tflite?.run {
+                    run(preprocessedBuffer, outputArray)
+                    Log.d("Classification", "Raw outputs: ${outputArray[0].contentToString()}")
 
-                val maxProb = probabilities.maxOrNull() ?: 0f
-                val maxIndex = probabilities.indexOfFirst { it == maxProb }
+                    val classes = arrayOf("BLACK_SIGATOKA", "DESCONOCIDO", "HEALTHY", "MOKO")
+                    val probabilities = outputArray[0]
+                    val maxProb = probabilities.maxOrNull() ?: 0f
+                    val maxIndex = probabilities.indexOfFirst { it == maxProb }
 
-                val resultString = if (maxProb < 0.6f) {
-                    "DESCONOCIDO"
-                } else {
-                    classes[maxIndex]
-                }
-
-                val userId = authRepository.getCurrentUserId()
-                Log.d("Auth", "Current user ID: $userId")
-
-                if (userId != null) {
-                    val classification = Classification(
-                        userId = userId,
-                        result = resultString,
-                        confidence = maxProb.toDouble(),
-                        timestamp = Timestamp.now()
-                    )
-
-                    try {
-                        val saveResult = authRepository.saveClassification(classification)
-                        saveResult.onSuccess { documentId ->
-                            Log.d("Firestore", "Classification saved with ID: $documentId")
-                        }.onFailure { error ->
-                            Log.e("Firestore", "Error saving classification", error)
-                        }
-                    } catch (e: Exception) {
-                        Log.e("Firestore", "Exception while saving classification", e)
+                    val resultString = when {
+                        maxProb < 0.76f -> "DESCONOCIDO"
+                        classes[maxIndex] == "HEALTHY" && maxProb < 0.8f -> "DESCONOCIDO"
+                        else -> classes[maxIndex]
                     }
-                } else {
-                    Log.e("Firestore", "User not authenticated, classification not saved")
-                }
 
-                result.value = getString(R.string.result, resultString) + "\n" +
-                        getString(R.string.confidence, maxProb * 100)
-                Log.d("Classification", "Final result: ${result.value}")
+                    handleClassificationResult(resultString, maxProb)
+                } ?: throw IllegalStateException("TFLite interpreter is null")
+
             } catch (e: Exception) {
-                Log.e("Classification", "Error during classification", e)
-                result.value = getString(R.string.error_loading_image)
+                Log.e("Classification", "Classification failed", e)
+                handleClassificationError(e)
             }
         }
     }
 
-    private fun convertBitmapToByteBuffer(bitmap: Bitmap): ByteBuffer {
-        val byteBuffer = ByteBuffer.allocateDirect(4 * 1 * 96 * 96 * 3)
-        byteBuffer.order(ByteOrder.nativeOrder())
-        val intValues = IntArray(96 * 96)
+    private fun scaleBitmapAndKeepRatio(imageBitmap: Bitmap): Bitmap {
+        val width = imageBitmap.width
+        val height = imageBitmap.height
+        val scaledWidth: Int
+        val scaledHeight: Int
+        val scale: Float
 
-        bitmap.getPixels(intValues, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-        var pixel = 0
-        for (i in 0 until 96) {
-            for (j in 0 until 96) {
-                val value = intValues[pixel++]
-                byteBuffer.putFloat(((value shr 16 and 0xFF) / 255.0f) * 2 - 1)
-                byteBuffer.putFloat(((value shr 8 and 0xFF) / 255.0f) * 2 - 1)
-                byteBuffer.putFloat(((value and 0xFF) / 255.0f) * 2 - 1)
+        if (height > width) {
+            scale = imageSizeY.toFloat() / height
+            scaledHeight = imageSizeY
+            scaledWidth = (width * scale).toInt()
+        } else {
+            scale = imageSizeX.toFloat() / width
+            scaledWidth = imageSizeX
+            scaledHeight = (height * scale).toInt()
+        }
+
+        val matrix = Matrix()
+        matrix.postScale(scale, scale)
+
+        val scaledBitmap = Bitmap.createBitmap(imageBitmap, 0, 0, width, height, matrix, true)
+        val paddedBitmap = Bitmap.createBitmap(imageSizeX, imageSizeY, Bitmap.Config.ARGB_8888)
+
+        val xOffset = (imageSizeX - scaledWidth) / 2
+        val yOffset = (imageSizeY - scaledHeight) / 2
+
+        val canvas = android.graphics.Canvas(paddedBitmap)
+        canvas.drawBitmap(scaledBitmap, xOffset.toFloat(), yOffset.toFloat(), null)
+
+        return paddedBitmap
+    }
+
+    private fun convertBitmapToByteBuffer(bitmap: Bitmap): ByteBuffer {
+        val byteBuffer = ByteBuffer.allocateDirect(4 * imageSizeX * imageSizeY * 3)
+        byteBuffer.order(ByteOrder.nativeOrder())
+
+        val pixels = IntArray(imageSizeX * imageSizeY)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+
+        pixels.forEach { pixel ->
+            byteBuffer.putFloat(((pixel shr 16 and 0xFF) / 255.0f) * 2 - 1)
+            byteBuffer.putFloat(((pixel shr 8 and 0xFF) / 255.0f) * 2 - 1)
+            byteBuffer.putFloat(((pixel and 0xFF) / 255.0f) * 2 - 1)
+        }
+
+        return byteBuffer
+    }
+
+    private suspend fun handleClassificationResult(resultString: String, confidence: Float) {
+        withContext(Dispatchers.Main) {
+            val userId = authRepository.getCurrentUserId()
+            if (userId != null) {
+                val classification = Classification(
+                    userId = userId,
+                    result = resultString,
+                    confidence = confidence.toDouble(),
+                    timestamp = Timestamp.now()
+                )
+                authRepository.saveClassification(classification)
+            }
+            result.value = getString(R.string.result, resultString) + "\n" +
+                    getString(R.string.confidence, confidence * 100)
+        }
+    }
+
+    private suspend fun handleClassificationError(error: Exception) {
+        withContext(Dispatchers.Main) {
+            result.value = when (error) {
+                is IllegalStateException -> getString(R.string.error_model_not_initialized)
+                is OutOfMemoryError -> getString(R.string.error_image_too_large)
+                else -> getString(R.string.error_classification_failed)
             }
         }
-        byteBuffer.rewind()
-        return byteBuffer
     }
 
     private fun checkPermissions() {
@@ -274,6 +305,7 @@ fun Activity.restartApp() {
     startActivity(intent)
     finish()
 }
+
 /*/@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClassifierApp(
