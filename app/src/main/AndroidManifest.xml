@@ -25,7 +25,7 @@
         android:roundIcon="@mipmap/app_logo001_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.BananaDiseaseClassifier"
-        android:name=".BananaDiseaseClassifierApp"
+        android:name="com.bananascan.classifier.BananaDiseaseClassifierApp"
         tools:targetApi="31">
 
         <!-- Definición de FileProvider -->
@@ -40,7 +40,7 @@
         </provider>
 
         <activity
-            android:name=".MainActivity"
+            android:name="com.bananascan.classifier.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.BananaDiseaseClassifier">

@@ -14,15 +14,15 @@ android {
             keyPassword = "f04u43c26K."
         }
     }
-    namespace = "com.example.bananadiseaseclassifier"
+    namespace = "com.bananascan.classifier"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.bananadiseaseclassifier"
+        applicationId = "com.bananascan.classifier"
         minSdk = 24
         targetSdk = 34
-        versionCode = 9
-        versionName = "1.4" //
+        versionCode = 10
+        versionName = "1.5" //
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -32,7 +32,11 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Habilitar la ofuscación
+            isMinifyEnabled = true
+            // Habilitar la reducción de recursos
+            isShrinkResources = true
+            // Reglas de ProGuard
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -55,6 +59,15 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            // Añadir si es necesario
+            excludes += "META-INF/DEPENDENCIES"
+            excludes += "META-INF/LICENSE"
+            excludes += "META-INF/LICENSE.txt"
+            excludes += "META-INF/license.txt"
+            excludes += "META-INF/NOTICE"
+            excludes += "META-INF/NOTICE.txt"
+            excludes += "META-INF/notice.txt"
+            excludes += "META-INF/*.kotlin_module"
         }
     }
 }
