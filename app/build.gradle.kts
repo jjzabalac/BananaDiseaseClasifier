@@ -21,8 +21,8 @@ android {
         applicationId = "com.bananascan.classifier"
         minSdk = 24
         targetSdk = 34
-        versionCode = 10
-        versionName = "1.5" //
+        versionCode = 11
+        versionName = "1.6" //
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -104,6 +104,14 @@ dependencies {
     implementation (libs.firebase.auth.ktx)
     implementation (libs.kotlinx.coroutines.play.services)
     implementation (libs.firebase.firestore.ktx)
+    // ViewModel
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx.v270)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    // StateFlow
+    implementation(libs.kotlinx.coroutines.android.v173)
+    // Para el manejo de ViewModels en Compose
+    implementation(libs.androidx.activity.compose.v182)
 
 
 

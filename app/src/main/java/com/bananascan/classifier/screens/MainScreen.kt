@@ -9,6 +9,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,6 +46,7 @@ fun MainScreen(
     authRepository: AuthRepository,
     onLogout: () -> Unit,
     onHistoryClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     currentLanguage: String,
     onLanguageChange: (String) -> Unit
 ) {
@@ -71,7 +74,6 @@ fun MainScreen(
             }
         }
     }
-
     val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean ->
         if (success) {
             coroutineScope.launch {
@@ -107,29 +109,47 @@ fun MainScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onHistoryClick) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.display_menu3),
-                            contentDescription = stringResource(R.string.classification_history),
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(32.dp)
-                        )
+                    // Grupo de iconos izquierdo
+                    Row(
+                        horizontalArrangement = Arrangement.Start,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        IconButton(onClick = onHistoryClick) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.display_menu3),
+                                contentDescription = stringResource(R.string.classification_history),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                        LanguageSelector(currentLanguage, onLanguageChange)
                     }
+
+                    // Logo central
                     Image(
                         painter = painterResource(id = R.drawable.app_logo_001),
                         contentDescription = stringResource(R.string.app_name),
                         modifier = Modifier
                             .size(48.dp)
-                            .weight(1f) // Añadir weight para centrar
-                            .offset(x = 25.dp),
-                        alignment = Alignment.Center // Centrar la imagen
+                            .weight(1f),
+                        alignment = Alignment.Center
                     )
-                    // Contenedor para los botones de la derecha con el mismo tamaño que el menú
+
+                    // Grupo de iconos derecho
                     Row(
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
                     ) {
-                        LanguageSelector(currentLanguage, onLanguageChange)
+                        IconButton(onClick = onSettingsClick) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = stringResource(R.string.settings),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
                         IconButton(onClick = {
                             coroutineScope.launch {
                                 authRepository.signOut()
@@ -254,7 +274,6 @@ fun MainScreen(
             ) {
                 Text(stringResource(R.string.classify), fontSize = 18.sp, color = Color.White)
             }
-
             Spacer(modifier = Modifier.height(16.dp))
 
             if (isClassifying) {
@@ -295,11 +314,15 @@ fun LanguageSelector(currentLanguage: String, onLanguageChange: (String) -> Unit
     val languages = listOf("en" to "EN", "es" to "ES")
 
     Box {
-        IconButton(onClick = { expanded = true }) {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier.size(32.dp)
+        ) {
             Text(
                 text = languages.first { it.first == currentLanguage }.second,
                 color = MaterialTheme.colorScheme.primary,
-                fontSize = 14.sp
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
             )
         }
         DropdownMenu(

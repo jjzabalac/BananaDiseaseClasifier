@@ -38,4 +38,16 @@
     <string name="result_colon">Result: %1$s</string>
     <string name="confidence_percent">Confidence: %.2f%%</string>
     <string name="date_colon">Date: %1$s</string>
+       <string name="logout">Logout</string>
+    <string name="account_settings">Account Settings</string>
+    <string name="delete_account">Delete Account</string>
+    <string name="delete_account_description">This action will permanently delete your account and all associated data. This includes your classification history and personal information.</string>
+    <string name="delete_my_account">Delete My Account</string>
+    <string name="confirm_deletion">Confirm Account Deletion</string>
+    <string name="deletion_warning">Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.</string>
+    <string name="confirm_delete">Yes, Delete My Account</string>
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+    <string name="error">Error</string>
+    <string name="settings">Settings</string>
 </resources>

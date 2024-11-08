@@ -79,6 +79,95 @@ class AuthRepository {
         }
     }
 
+    suspend fun deleteUserData(): Result<Unit> {
+        return try {
+            val currentUser = auth.currentUser
+            if (currentUser == null) {
+                Log.e("AuthRepository", "No user logged in to delete")
+                return Result.failure(Exception("No user logged in"))
+            }
+
+            val userId = currentUser.uid
+            Log.d("AuthRepository", "Starting user deletion process for user: $userId")
+
+            // Create deletion request document
+            val deletionRequest = hashMapOf(
+                "userId" to userId,
+                "email" to currentUser.email,
+                "status" to "PENDING",
+                "requestDate" to com.google.firebase.Timestamp.now(),
+                "scheduledDeletionDate" to com.google.firebase.Timestamp(
+                    java.util.Date(System.currentTimeMillis() + (90L * 24 * 60 * 60 * 1000))
+                )
+            )
+
+            // Save deletion request
+            firestore.collection("deletionRequests")
+                .add(deletionRequest)
+                .await()
+
+            // Delete all user classifications
+            val classifications = firestore.collection("classifications")
+                .whereEqualTo("userId", userId)
+                .get()
+                .await()
+
+            // Batch delete classifications
+            val batch = firestore.batch()
+            classifications.documents.forEach { doc ->
+                batch.delete(doc.reference)
+            }
+            batch.commit().await()
+
+            // Delete user authentication account
+            currentUser.delete().await()
+
+            // Sign out after deletion
+            auth.signOut()
+
+            Log.d("AuthRepository", "User deletion completed successfully for: $userId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Error during user deletion process", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun cancelDeletionRequest(): Result<Unit> {
+        return try {
+            val userId = getCurrentUserId()
+            if (userId == null) {
+                Log.e("AuthRepository", "No user logged in to cancel deletion")
+                return Result.failure(Exception("No user logged in"))
+            }
+
+            Log.d("AuthRepository", "Attempting to cancel deletion request for user: $userId")
+
+            val deletionRequests = firestore.collection("deletionRequests")
+                .whereEqualTo("userId", userId)
+                .whereEqualTo("status", "PENDING")
+                .get()
+                .await()
+
+            if (deletionRequests.documents.isEmpty()) {
+                Log.d("AuthRepository", "No pending deletion requests found for user: $userId")
+                return Result.success(Unit)
+            }
+
+            val batch = firestore.batch()
+            deletionRequests.documents.forEach { doc ->
+                batch.update(doc.reference, "status", "CANCELLED")
+            }
+            batch.commit().await()
+
+            Log.d("AuthRepository", "Deletion request cancelled successfully for user: $userId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Error cancelling deletion request", e)
+            Result.failure(e)
+        }
+    }
+
     fun isUserLoggedIn(): Boolean {
         val isLoggedIn = auth.currentUser != null
         Log.d("AuthRepository", "Checking if user is logged in: $isLoggedIn")

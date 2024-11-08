@@ -38,4 +38,16 @@
     <string name="result_colon">Resultado: %1$s</string>
     <string name="confidence_percent">Confianza: %.2f%%</string>
     <string name="date_colon">Fecha: %1$s</string>
+    <string name="logout">Cerrar Sesión</string>
+    <string name="account_settings">Configuración de la Cuenta</string>
+    <string name="delete_account">Eliminar Cuenta</string>
+    <string name="delete_account_description">Esta acción eliminará permanentemente tu cuenta y todos los datos asociados. Esto incluye tu historial de clasificaciones e información personal.</string>
+    <string name="delete_my_account">Eliminar Mi Cuenta</string>
+    <string name="confirm_deletion">Confirmar Eliminación de Cuenta</string>
+    <string name="deletion_warning">¿Estás seguro de que deseas eliminar tu cuenta? Esta acción no se puede deshacer y todos tus datos se eliminarán permanentemente.</string>
+    <string name="confirm_delete">Sí, Eliminar Mi Cuenta</string>
+    <string name="cancel">Cancelar</string>
+    <string name="ok">Aceptar</string>
+    <string name="error">Error</string>
+    <string name="settings">Configuración</string>
 </resources>

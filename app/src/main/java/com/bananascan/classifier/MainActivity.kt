@@ -32,11 +32,14 @@ import java.nio.channels.FileChannel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.text.font.FontStyle
+import androidx.lifecycle.ViewModelProvider
 import com.bananascan.classifier.data.AuthRepository
 import com.bananascan.classifier.screens.LoginScreen
 import com.bananascan.classifier.screens.MainScreen
 import com.bananascan.classifier.screens.RegisterScreen
 import com.bananascan.classifier.screens.HistoryScreen
+import com.bananascan.classifier.screens.AccountSettingsScreen
+import com.bananascan.classifier.viewmodels.AccountSettingsViewModel
 import com.google.firebase.FirebaseApp
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.ktx.firestore
@@ -50,6 +53,7 @@ class MainActivity : ComponentActivity() {
     private var imageSizeX: Int = 96
     private var imageSizeY: Int = 96
     private lateinit var authRepository: AuthRepository
+    private lateinit var accountSettingsViewModel: AccountSettingsViewModel
     private lateinit var imageUri: MutableState<Uri?>
     private var tflite: Interpreter? = null
     private lateinit var result: MutableState<String>
@@ -59,6 +63,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         FirebaseApp.initializeApp(this)
         authRepository = AuthRepository()
+        // Inicializar el ViewModel usando by viewModels() para manejo de lifecycle
+        accountSettingsViewModel = ViewModelProvider(
+            this,
+            AccountSettingsViewModel.Factory(authRepository)
+        )[AccountSettingsViewModel::class.java]
         imageUri = mutableStateOf(null)
         result = mutableStateOf(getString(R.string.select_image_first))
 
@@ -90,6 +99,7 @@ class MainActivity : ComponentActivity() {
                         authRepository = authRepository,
                         onLogout = { currentScreen = "login" },
                         onHistoryClick = { currentScreen = "history" },
+                        onSettingsClick = { currentScreen = "settings" },
                         currentLanguage = currentLanguage,
                         onLanguageChange = { newLanguage ->
                             setLocale(newLanguage)
@@ -101,6 +111,16 @@ class MainActivity : ComponentActivity() {
                         authRepository = authRepository,
                         onBack = { currentScreen = "main" }
                     )
+                    "settings" -> {
+                        // Asegurarse de que el ViewModel está inicializado
+                        if (::accountSettingsViewModel.isInitialized) {
+                            AccountSettingsScreen(
+                                viewModel = accountSettingsViewModel,
+                                onNavigateBack = { currentScreen = "main" },
+                                onDeletionCompleted = { currentScreen = "login" }
+                            )
+                        }
+                    }
                 }
             }
         }
