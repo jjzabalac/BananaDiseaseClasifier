@@ -38,7 +38,7 @@
     <string name="result_colon">Result: %1$s</string>
     <string name="confidence_percent">Confidence: %.2f%%</string>
     <string name="date_colon">Date: %1$s</string>
-       <string name="logout">Logout</string>
+    <string name="logout">Logout</string>
     <string name="account_settings">Account Settings</string>
     <string name="delete_account">Delete Account</string>
     <string name="delete_account_description">This action will permanently delete your account and all associated data. This includes your classification history and personal information.</string>
@@ -50,4 +50,7 @@
     <string name="ok">OK</string>
     <string name="error">Error</string>
     <string name="settings">Settings</string>
+    <string name="data_deletion_title">Account Deletion</string>
+    <string name="data_deletion_loading">Loading deletion page...</string>
+    <string name="deletion_initiated">Account deletion process initiated</string>
 </resources>

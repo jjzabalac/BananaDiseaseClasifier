@@ -28,6 +28,7 @@ tensorflowLiteGpu = "2.10.0"
 tensorflowLiteSupport = "0.2.0"
 ui = "1.0.5"
 uiToolingPreview = "1.7.3"
+webkit = "1.12.1"
 
 [libraries]
 accompanist-coil = { module = "com.google.accompanist:accompanist-coil", version.ref = "accompanistCoil" }
@@ -43,6 +44,7 @@ androidx-material-v105 = { module = "androidx.compose.material:material", versio
 androidx-material3-v112 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
 androidx-ui-tooling-preview-v105 = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "uiToolingPreview" }
 androidx-ui-v105 = { module = "androidx.compose.ui:ui", version.ref = "ui" }
+androidx-webkit = { module = "androidx.webkit:webkit", version.ref = "webkit" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 firebase-auth-ktx = { module = "com.google.firebase:firebase-auth-ktx" }

@@ -112,6 +112,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android.v173)
     // Para el manejo de ViewModels en Compose
     implementation(libs.androidx.activity.compose.v182)
+    implementation(libs.androidx.webkit)
 
 
 

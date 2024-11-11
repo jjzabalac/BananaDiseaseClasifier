@@ -1,5 +1,6 @@
 package com.bananascan.classifier.screens
 
+import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -8,11 +9,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bananascan.classifier.R
+import com.bananascan.classifier.DataDeletionActivity
 import com.bananascan.classifier.viewmodels.AccountSettingsViewModel
 import com.bananascan.classifier.viewmodels.AccountSettingsUiState
 
@@ -20,12 +23,13 @@ import com.bananascan.classifier.viewmodels.AccountSettingsUiState
 @Composable
 fun AccountSettingsScreen(
     viewModel: AccountSettingsViewModel,
-    onNavigateBack: () -> Unit,  // Asegúrate de que este nombre coincida
-    onDeletionCompleted: () -> Unit  // Asegúrate de que este nombre coincida
+    onNavigateBack: () -> Unit,
+    onDeletionCompleted: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showConfirmationDialog by remember { mutableStateOf(false) }
     val backgroundColor = Color(0xFFF8F5D0)
+    val context = LocalContext.current
 
     LaunchedEffect(uiState) {
         if (uiState is AccountSettingsUiState.DeletionRequested) {
@@ -61,17 +65,18 @@ fun AccountSettingsScreen(
         ) {
             if (uiState is AccountSettingsUiState.Error) {
                 AlertDialog(
-                    onDismissRequest = { },
+                    onDismissRequest = { viewModel.clearError() },
                     title = { Text(stringResource(R.string.error)) },
                     text = { Text((uiState as AccountSettingsUiState.Error).message) },
                     confirmButton = {
-                        TextButton(onClick = { }) {
+                        TextButton(onClick = { viewModel.clearError() }) {
                             Text(stringResource(R.string.ok))
                         }
                     }
                 )
             }
 
+            // Sección de eliminación de cuenta
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -116,7 +121,10 @@ fun AccountSettingsScreen(
                         TextButton(
                             onClick = {
                                 showConfirmationDialog = false
-                                viewModel.requestAccountDeletion()
+                                // Lanzar DataDeletionActivity
+                                context.startActivity(
+                                    Intent(context, DataDeletionActivity::class.java)
+                                )
                             },
                             colors = ButtonDefaults.textButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error

@@ -50,4 +50,7 @@
     <string name="ok">Aceptar</string>
     <string name="error">Error</string>
     <string name="settings">Configuración</string>
+    <string name="data_deletion_title">Eliminación de Cuenta</string>
+    <string name="data_deletion_loading">Cargando página de eliminación...</string>
+    <string name="deletion_initiated">Proceso de eliminación de cuenta iniciado</string>
 </resources>
