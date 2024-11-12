@@ -21,8 +21,8 @@ android {
         applicationId = "com.bananascan.classifier"
         minSdk = 24
         targetSdk = 34
-        versionCode = 11
-        versionName = "1.6" //
+        versionCode = 13
+        versionName = "1.8" //
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

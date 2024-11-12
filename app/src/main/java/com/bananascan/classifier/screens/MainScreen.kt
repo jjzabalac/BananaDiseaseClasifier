@@ -120,7 +120,7 @@ fun MainScreen(
                                 painter = painterResource(id = R.drawable.display_menu3),
                                 contentDescription = stringResource(R.string.classification_history),
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(42.dp)
                             )
                         }
                         LanguageSelector(currentLanguage, onLanguageChange)
@@ -147,7 +147,7 @@ fun MainScreen(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = stringResource(R.string.settings),
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(38.dp)
                             )
                         }
                         IconButton(onClick = {
@@ -160,7 +160,7 @@ fun MainScreen(
                                 painter = painterResource(id = R.drawable.logout_logo2),
                                 contentDescription = "Logout",
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(38.dp)
                             )
                         }
                     }
@@ -316,12 +316,12 @@ fun LanguageSelector(currentLanguage: String, onLanguageChange: (String) -> Unit
     Box {
         IconButton(
             onClick = { expanded = true },
-            modifier = Modifier.size(32.dp)
+            modifier = Modifier.size(38.dp)
         ) {
             Text(
                 text = languages.first { it.first == currentLanguage }.second,
                 color = MaterialTheme.colorScheme.primary,
-                fontSize = 14.sp,
+                fontSize = 25.sp,
                 fontWeight = FontWeight.Bold
             )
         }
