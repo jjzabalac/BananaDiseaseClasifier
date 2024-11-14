@@ -1,8 +1,9 @@
 package com.bananascan.classifier
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.webkit.*
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,16 +22,50 @@ import kotlinx.coroutines.launch
 
 class DataDeletionActivity : ComponentActivity() {
     private lateinit var authRepository: AuthRepository
+    private var shouldShowConfirmationDirectly = false
+    private var webViewError = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         authRepository = AuthRepository()
 
+        val action = intent?.action
+        val data = intent?.data
+
+        var initialUrl = "https://jjzabalac.github.io/banana-scan-deletion/"
+
+        if (action == Intent.ACTION_VIEW && data != null) {
+            when {
+                data.host == "datadeletion" && data.scheme == "bananascan" -> {
+                    shouldShowConfirmationDirectly = true
+                    handleDeepLink(data)
+                }
+                data.host == "jjzabalac.github.io" &&
+                        data.path?.startsWith("/banana-scan-deletion") == true -> {
+                    initialUrl = data.toString()
+                    shouldShowConfirmationDirectly = true
+                    handleDeepLink(data)
+                }
+            }
+        }
+
         setContent {
             DataDeletionScreen(
                 authRepository = authRepository,
-                onFinish = { finish() }
+                onFinish = { finish() },
+                initialUrl = initialUrl,
+                showConfirmationDirectly = shouldShowConfirmationDirectly,
+                webViewError = webViewError
             )
+        }
+    }
+
+    private fun handleDeepLink(uri: Uri) {
+        uri.getQueryParameter("action")?.let { action ->
+            when (action) {
+                "delete" -> shouldShowConfirmationDirectly = true
+                "cancel" -> finish()
+            }
         }
     }
 }
@@ -38,13 +73,24 @@ class DataDeletionActivity : ComponentActivity() {
 @Composable
 private fun DataDeletionScreen(
     authRepository: AuthRepository,
-    onFinish: () -> Unit
+    onFinish: () -> Unit,
+    initialUrl: String,
+    showConfirmationDirectly: Boolean,
+    webViewError: Boolean
 ) {
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    var showConfirmDialog by remember { mutableStateOf(showConfirmationDirectly) }
+    var hasWebViewError by remember { mutableStateOf(webViewError) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val backgroundColor = Color(0xFFF8F5D0)
+
+    LaunchedEffect(showConfirmationDirectly) {
+        if (showConfirmationDirectly) {
+            showConfirmDialog = true
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -54,37 +100,69 @@ private fun DataDeletionScreen(
             Column(
                 modifier = Modifier.fillMaxSize()
             ) {
-                // WebView con el contenido
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                ) {
-                    AndroidView(
-                        factory = { context ->
-                            WebView(context).apply {
-                                settings.javaScriptEnabled = true
-                                settings.userAgentString = "BananaScan/1.0"
-                                webViewClient = object : WebViewClient() {
-                                    override fun onPageFinished(view: WebView?, url: String?) {
-                                        super.onPageFinished(view, url)
-                                        isLoading = false
+                if (!hasWebViewError) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    ) {
+                        AndroidView(
+                            factory = { context ->
+                                WebView(context).apply {
+                                    settings.apply {
+                                        javaScriptEnabled = true
+                                        userAgentString = "BananaScan/1.0"
+                                        domStorageEnabled = true
+                                        allowFileAccess = true
+                                        cacheMode = WebSettings.LOAD_NO_CACHE
                                     }
-                                }
-                                loadUrl("https://jjzabalac.github.io/banana-scan-deletion/")
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
 
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.Center)
+                                    webViewClient = object : WebViewClient() {
+                                        override fun onPageFinished(view: WebView?, url: String?) {
+                                            super.onPageFinished(view, url)
+                                            isLoading = false
+                                        }
+
+                                        override fun shouldOverrideUrlLoading(
+                                            view: WebView?,
+                                            request: WebResourceRequest?
+                                        ): Boolean {
+                                            request?.url?.let { uri ->
+                                                if (uri.scheme == "bananascan") {
+                                                    showConfirmDialog = true
+                                                    return true
+                                                }
+                                            }
+                                            return false
+                                        }
+
+                                        override fun onReceivedError(
+                                            view: WebView?,
+                                            request: WebResourceRequest?,
+                                            error: WebResourceError?
+                                        ) {
+                                            super.onReceivedError(view, request, error)
+                                            hasWebViewError = true
+                                            isLoading = false
+                                        }
+                                    }
+
+                                    webChromeClient = object : WebChromeClient() {}
+
+                                    loadUrl(initialUrl)
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize()
                         )
+
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                        }
                     }
                 }
 
-                // Botones en la parte inferior
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -95,22 +173,7 @@ private fun DataDeletionScreen(
                             .navigationBarsPadding()
                     ) {
                         Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    authRepository.deleteUserData()
-                                        .onSuccess {
-                                            Toast.makeText(
-                                                context,
-                                                context.getString(R.string.deletion_initiated),
-                                                Toast.LENGTH_LONG
-                                            ).show()
-                                            onFinish()
-                                        }
-                                        .onFailure { e ->
-                                            error = e.message
-                                        }
-                                }
-                            },
+                            onClick = { showConfirmDialog = true },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(56.dp),
@@ -133,6 +196,45 @@ private fun DataDeletionScreen(
                         }
                     }
                 }
+            }
+
+            if (showConfirmDialog) {
+                AlertDialog(
+                    onDismissRequest = { showConfirmDialog = false },
+                    title = { Text(stringResource(R.string.confirm_deletion)) },
+                    text = { Text(stringResource(R.string.deletion_warning)) },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showConfirmDialog = false
+                                coroutineScope.launch {
+                                    authRepository.deleteUserData()
+                                        .onSuccess {
+                                            Toast.makeText(
+                                                context,
+                                                context.getString(R.string.deletion_initiated),
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                            onFinish()
+                                        }
+                                        .onFailure { e ->
+                                            error = e.message
+                                        }
+                                }
+                            }
+                        ) {
+                            Text(
+                                text = stringResource(R.string.confirm_delete),
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showConfirmDialog = false }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                    }
+                )
             }
 
             error?.let { errorMessage ->

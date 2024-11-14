@@ -52,15 +52,27 @@
 
         <activity
             android:name=".DataDeletionActivity"
-            android:exported="true">
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.BananaDiseaseClassifier">
+            <!-- Intent filter para links HTTPS -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
+                    android:scheme="https"
                     android:host="jjzabalac.github.io"
-                    android:pathPrefix="/banana-scan-deletion"
-                    android:scheme="https" />
+                    android:pathPrefix="/banana-scan-deletion" />
+            </intent-filter>
+            <!-- Intent filter para deep links personalizados -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="bananascan"
+                    android:host="datadeletion" />
             </intent-filter>
         </activity>
     </application>
