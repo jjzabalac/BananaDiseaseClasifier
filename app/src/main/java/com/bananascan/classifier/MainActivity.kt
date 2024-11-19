@@ -145,7 +145,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun loadModelFile(): MappedByteBuffer {
-        val fileDescriptor = assets.openFd("transfer-learning-tensorflow-lite-float32-model-4 (2).tflite")
+        val fileDescriptor = assets.openFd("transfer-learning-tensorflow-lite-float32-modelMNV2 (160x160).tflite")
         val inputStream = FileInputStream(fileDescriptor.fileDescriptor)
         val fileChannel = inputStream.channel
         val startOffset = fileDescriptor.startOffset
